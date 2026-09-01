@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinkStick Kiosk — 360° View</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/iconfont/tabler-icons.min.css">
+<style>
+  :root{
+    --bg:#0A0C0E; --panel:#12161A; --panel-2:#171C21;
+    --copper:#FFB000; --teal:#00D9B5; --text:#F2EFE9; --muted:#8A8F94; --line:#22282E;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Segoe UI', Arial, sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; padding:32px 16px;
+  }
+  h1{font-size:18px; font-weight:600; margin:0 0 4px;}
+  p.sub{color:var(--muted); font-size:13px; margin:0 0 16px;}
+
+  #themeToggle{
+    display:flex; align-items:center; gap:6px; font-size:13px;
+    background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:7px 12px; cursor:pointer; margin-bottom:16px;
+  }
+  #themeToggle:hover{ border-color:var(--copper); }
+
+  #scene{ width:320px; height:360px; perspective:1000px; cursor:grab; touch-action:none; }
+  #cube{ width:100%; height:100%; position:relative; transform-style:preserve-3d; }
+  .face{
+    position:absolute; width:200px; height:340px; left:60px; top:10px;
+    border-radius:12px; border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; box-sizing:border-box;
+  }
+  .front{ padding:14px; transform:translateZ(100px); }
+  .back{ justify-content:center; gap:14px; transform:rotateY(180deg) translateZ(100px); }
+  .side{ justify-content:center; transform-origin:center; }
+  .side.right{ transform:rotateY(90deg) translateZ(100px); }
+  .side.left{ transform:rotateY(-90deg) translateZ(100px); }
+
+  .screen{ width:100%; height:170px; border-radius:8px; padding:10px; box-sizing:border-box; }
+  .screen .title{font-size:12px; font-weight:600;}
+  .screen .q{font-size:11px; margin-top:6px;}
+  .langs{display:flex; gap:5px; margin-top:10px;}
+  .langs div{flex:1; font-size:10px; text-align:center; padding:6px 0; border-radius:5px;}
+
+  .micbtn{
+    width:52px; height:52px; border-radius:50%; background:var(--copper);
+    display:flex; align-items:center; justify-content:center; margin-top:18px;
+    border:none; cursor:pointer;
+  }
+  .micbtn i{font-size:24px; color:#0A0C0E;}
+  .micbtn:active{ transform:scale(0.94); }
+  .caption{font-size:11px; margin-top:10px;}
+
+  #controls{ display:flex; align-items:center; gap:12px; width:320px; margin-top:20px; }
+  #rot{ flex:1; }
+  #buttons{ display:flex; gap:10px; margin-top:14px; }
+  button.ctl{
+    font-size:13px; background:var(--panel); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:8px 14px; cursor:pointer;
+  }
+  button.ctl:hover{ border-color:var(--copper); }
+</style>
+</head>
+<body>
+
+<h1>ThinkStick — Multilingual Cooperative Governance Kiosk</h1>
+<p class="sub">Drag to rotate. Toggle switches the kiosk display theme.</p>
+
+<button id="themeToggle"><i id="themeIcon" class="ti ti-moon"></i><span id="themeLabel">Dark</span></button>
+
+<div id="scene">
+  <div id="cube">
+    <div class="face front" id="faceFront">
+      <div class="screen" id="screenBg">
+        <div class="title" id="screenTitle">Cooperative legal assistant</div>
+        <div class="q" id="screenQ">How can I help you?</div>
+        <div class="langs">
+          <div class="langpill">Tamil</div><div class="langpill">Hindi</div><div class="langpill">English</div>
+        </div>
+      </div>
+      <button class="micbtn" aria-label="Voice input"><i class="ti ti-microphone"></i></button>
+      <div class="caption">Front</div>
+    </div>
+
+    <div class="face back" id="faceBack">
+      <i class="ti ti-plug" id="plugIcon" style="font-size:20px;"></i>
+      <div class="caption">Power 12V</div>
+      <div class="caption" style="margin-top:8px;">Back — vents + ports</div>
+    </div>
+
+    <div class="face side right" id="faceRight"><div class="caption">Side</div></div>
+    <div class="face side left" id="faceLeft"><div class="caption">Side</div></div>
+  </div>
+</div>
+
+<div id="controls">
+  <i class="ti ti-rotate-2" style="color:var(--muted);"></i>
+  <input type="range" id="rot" min="0" max="359" step="1" value="335">
+</div>
+
+<div id="buttons">
+  <button class="ctl" id="autoBtn">Auto-rotate</button>
+  <button class="ctl" id="frontBtn">Front</button>
+  <button class="ctl" id="backBtn">Back</button>
+</div>
+
+<script>
+const THEMES = {
+  dark:  { body:'#12161A', screen:'#1B2126', title:'#F2EFE9', q:'#8A8F94', pill:'#0d1013', pillBorder:'#2A3138', caption:'#8A8F94', sideBg:'#0d1013' },
+  light: { body:'#F4F5F6', screen:'#FFFFFF', title:'#1A1D21', q:'#5A5F66', pill:'#F4F5F6', pillBorder:'#D5D8DB', caption:'#6B7280', sideBg:'#E9EBEC' }
+};
+let currentTheme = 'dark';
+
+function applyTheme(mode){
+  const t = THEMES[mode];
+  document.getElementById('faceFront').style.background = t.body;
+  document.getElementById('faceBack').style.background = t.body;
+  document.getElementById('faceRight').style.background = t.sideBg;
+  document.getElementById('faceLeft').style.background = t.sideBg;
+  document.getElementById('screenBg').style.background = t.screen;
+  document.getElementById('screenTitle').style.color = t.title;
+  document.getElementById('screenQ').style.color = t.q;
+  document.querySelectorAll('.langpill').forEach(el => {
+    el.style.background = t.pill; el.style.border = '1px solid ' + t.pillBorder; el.style.color = t.title;
+  });
+  document.querySelectorAll('.caption').forEach(el => { el.style.color = t.caption; });
+  document.getElementById('plugIcon').style.color = t.caption;
+  document.getElementById('themeIcon').className = mode === 'dark' ? 'ti ti-moon' : 'ti ti-sun';
+  document.getElementById('themeLabel').textContent = mode === 'dark' ? 'Dark' : 'Light';
+  currentTheme = mode;
+}
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+});
+applyTheme('dark');
+
+const cube = document.getElementById('cube');
+const scene = document.getElementById('scene');
+const rot = document.getElementById('rot');
+const autoBtn = document.getElementById('autoBtn');
+let angle = -25;
+let autoTimer = null;
+
+function setAngle(a){
+  angle = a;
+  const norm = ((angle % 360) + 360) % 360;
+  cube.style.transform = 'rotateY(' + angle + 'deg)';
+  rot.value = Math.round(norm);
+}
+
+rot.addEventListener('input', () => { stopAuto(); setAngle(Number(rot.value)); });
+
+let dragging = false, lastX = 0;
+scene.addEventListener('pointerdown', (e) => {
+  stopAuto(); dragging = true; lastX = e.clientX;
+  scene.style.cursor = 'grabbing'; scene.setPointerCapture(e.pointerId);
+});
+scene.addEventListener('pointermove', (e) => {
+  if(!dragging) return;
+  const dx = e.clientX - lastX; lastX = e.clientX;
+  setAngle(angle + dx * 0.5);
+});
+scene.addEventListener('pointerup', () => { dragging = false; scene.style.cursor = 'grab'; });
+scene.addEventListener('pointercancel', () => { dragging = false; scene.style.cursor = 'grab'; });
+
+function startAuto(){ autoBtn.textContent = 'Stop rotating'; autoTimer = setInterval(() => setAngle(angle + 1), 30); }
+function stopAuto(){ if(autoTimer){ clearInterval(autoTimer); autoTimer = null; autoBtn.textContent = 'Auto-rotate'; } }
+autoBtn.addEventListener('click', () => autoTimer ? stopAuto() : startAuto());
+
+document.getElementById('frontBtn').addEventListener('click', () => { stopAuto(); setAngle(0); });
+document.getElementById('backBtn').addEventListener('click', () => { stopAuto(); setAngle(180); });
+
+document.querySelector('.micbtn').addEventListener('click', () => {
+  const btn = document.querySelector('.micbtn');
+  btn.style.background = '#00D9B5';
+  setTimeout(() => { btn.style.background = '#FFB000'; }, 400);
+});
+
+setAngle(-25);
+</script>
+
+</body>
+</html>
